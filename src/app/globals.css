@@ -1,18 +1,63 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
-  --color-primary: #1A56DB;
-  --color-primary-dark: #1544B0;
-  --color-primary-light: #EFF6FF;
-  --color-secondary: #0EA5E9;
-  --color-bg: #F7F8FA;
-  --color-surface: #FFFFFF;
-  --color-success: #16A34A;
-  --color-error: #DC2626;
+  /* ── Semantic tokens (Lovable-style) ── */
+  --color-background: hsl(210 20% 98%);
+  --color-foreground: hsl(220 20% 10%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(220 20% 10%);
+
+  --color-primary: hsl(221 83% 53%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-primary-dark: #1D4ED8;
+  --color-primary-light: hsl(221 100% 96%);
+  --color-primary-glow: rgba(37, 99, 235, 0.15);
+
+  --color-secondary: hsl(210 20% 96%);
+  --color-secondary-foreground: hsl(220 20% 10%);
+
+  --color-muted: hsl(210 15% 93%);
+  --color-muted-foreground: hsl(220 10% 50%);
+
+  --color-accent: hsl(221 60% 94%);
+  --color-accent-foreground: hsl(221 83% 43%);
+
+  --color-destructive: hsl(0 84% 60%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+
+  --color-success: #10B981;
+  --color-success-light: #D1FAE5;
+  --color-error: #EF4444;
+  --color-error-light: #FEE2E2;
   --color-warning: #F59E0B;
-  --color-text: #1F2937;
-  --color-text-secondary: #6B7280;
-  --color-border: #E5E7EB;
+
+  --color-border: hsl(210 15% 90%);
+  --color-border-light: hsl(210 17% 95%);
+  --color-input: hsl(210 15% 90%);
+  --color-ring: hsl(221 83% 53%);
+
+  --color-card-shadow: rgba(0, 0, 0, 0.04);
+  --color-overlay: rgba(0, 0, 0, 0.5);
+
+  /* ── Legacy aliases (backwards compat) ── */
+  --color-bg: hsl(210 20% 98%);
+  --color-surface: hsl(0 0% 100%);
+  --color-surface-elevated: hsl(0 0% 100%);
+  --color-text: hsl(220 20% 10%);
+  --color-text-secondary: hsl(220 10% 50%);
+  --color-text-tertiary: hsl(218 11% 65%);
+
+  /* ── Wallet ── */
+  --wallet-gradient: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+
+  /* ── Radius ── */
+  --radius: 1rem;
+
+  /* ── Font ── */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
 }
 
 * {
@@ -20,57 +65,230 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  border-color: var(--color-border);
 }
 
 html {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color-scheme: light;
 }
 
 body {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-background);
+  color: var(--color-foreground);
   min-height: 100dvh;
-  max-width: 428px;
+  max-width: 430px;
   margin: 0 auto;
   position: relative;
+  overflow-x: hidden;
 }
 
-input, button, textarea {
+input, button, textarea, select {
   font-family: inherit;
+  border: none;
+  outline: none;
 }
 
-@keyframes checkmark-circle {
-  0% { stroke-dashoffset: 166; }
-  100% { stroke-dashoffset: 0; }
+button {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-@keyframes checkmark-check {
-  0% { stroke-dashoffset: 48; }
-  100% { stroke-dashoffset: 0; }
+button:active {
+  transform: scale(0.97);
+  transition: transform 0.1s;
+}
+
+/* Scrollbar hide */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Glass card */
+.glass {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* Card base */
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px var(--color-card-shadow), 0 4px 12px var(--color-card-shadow);
+}
+
+/* Primary gradient */
+.gradient-primary {
+  background: linear-gradient(135deg, #2563EB 0%, #0EA5E9 50%, #06B6D4 100%);
+}
+
+/* Wallet gradient */
+.gradient-wallet {
+  background: var(--wallet-gradient);
+}
+
+/* Input base */
+.input-base {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--color-input);
+  background: var(--color-card);
+  font-size: 15px;
+  color: var(--color-foreground);
+  transition: all 0.2s ease;
+}
+
+.input-base:focus {
+  border-color: var(--color-ring);
+  box-shadow: 0 0 0 3px var(--color-primary-glow);
+}
+
+.input-base::placeholder {
+  color: var(--color-muted-foreground);
+}
+
+/* Button base */
+.btn-primary {
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  width: 100%;
+  height: 52px;
+  border-radius: var(--radius);
+  background: var(--color-secondary);
+  color: var(--color-secondary-foreground);
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: var(--color-muted);
+}
+
+/* Pill badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes scale-bounce {
+  0% { transform: scale(0); }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-6px); }
-  40%, 80% { transform: translateX(6px); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
 }
 
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
 }
 
-@keyframes confetti {
-  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(400px) rotate(720deg); opacity: 0; }
+@keyframes checkmark-draw {
+  to { stroke-dashoffset: 0; }
 }
 
-@keyframes scale-in {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+@keyframes confetti-fall {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up { animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fade-in 0.3s ease forwards; }
+.animate-scale-in { animation: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-scale-bounce { animation: scale-bounce 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-shake { animation: shake 0.4s ease; }
-.animate-fade-in-up { animation: fade-in-up 0.3s ease; }
-.animate-scale-in { animation: scale-in 0.3s ease; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Stagger children animations */
+.stagger > * {
+  opacity: 0;
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 60ms; }
+.stagger > *:nth-child(3) { animation-delay: 120ms; }
+.stagger > *:nth-child(4) { animation-delay: 180ms; }
+.stagger > *:nth-child(5) { animation-delay: 240ms; }
+.stagger > *:nth-child(6) { animation-delay: 300ms; }

@@ -15,41 +15,47 @@ export async function POST(request) {
     const supabase = createServerClient();
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Rate limit: check recent OTP requests
-    const fiveMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-    const { data: recentUser } = await supabase
+    // Generate OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    // Check if user exists
+    const { data: existingUser, error: findError } = await supabase
       .from("users")
-      .select("otp_expires_at, otp_attempts")
+      .select("user_id, role, name, otp_attempts, otp_expires_at")
       .eq("email", normalizedEmail)
       .single();
 
-    if (recentUser?.otp_attempts >= 3 && recentUser?.otp_expires_at && new Date(recentUser.otp_expires_at) > new Date()) {
+    if (findError && findError.code !== "PGRST116") {
+      // PGRST116 = "not found" which is expected for new users
+      console.error("Find user error:", findError);
+    }
+
+    // Rate limit for existing users
+    if (existingUser?.otp_attempts >= 3 && existingUser?.otp_expires_at && new Date(existingUser.otp_expires_at) > new Date()) {
       return NextResponse.json(
         { success: false, message: "Too many requests. Please wait before requesting a new code." },
         { status: 429 }
       );
     }
 
-    // Generate OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-    // Check if user exists
-    const { data: existingUser } = await supabase
-      .from("users")
-      .select("user_id, role, name")
-      .eq("email", normalizedEmail)
-      .single();
-
     if (existingUser) {
       // Update OTP for existing user
-      await supabase
+      const { error: updateError } = await supabase
         .from("users")
         .update({ otp_code: otpCode, otp_expires_at: otpExpiresAt, otp_attempts: 0 })
         .eq("user_id", existingUser.user_id);
+
+      if (updateError) {
+        console.error("Update OTP error:", updateError);
+        return NextResponse.json(
+          { success: false, message: "Failed to generate OTP. Please try again." },
+          { status: 500 }
+        );
+      }
     } else {
       // Create new user with role "user"
-      await supabase.from("users").insert({
+      const { error: insertError } = await supabase.from("users").insert({
         name: normalizedEmail.split("@")[0],
         email: normalizedEmail,
         role: "user",
@@ -57,19 +63,28 @@ export async function POST(request) {
         otp_expires_at: otpExpiresAt,
         otp_attempts: 0,
       });
+
+      if (insertError) {
+        console.error("Insert user error:", insertError);
+        return NextResponse.json(
+          { success: false, message: "Failed to create account. Please try again." },
+          { status: 500 }
+        );
+      }
     }
 
     // Send OTP via email (using Resend)
     if (process.env.RESEND_API_KEY) {
       try {
-        await fetch("https://api.resend.com/emails", {
+        const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+        const resendRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "InfiLove <noreply@infilove.app>",
+            from: fromEmail,
             to: [normalizedEmail],
             subject: "Your InfiLove OTP Code",
             html: `<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:24px;">
@@ -82,19 +97,22 @@ export async function POST(request) {
             </div>`,
           }),
         });
-      } catch {
-        // Email send failed — log but don't block
-        console.error("Failed to send OTP email");
+        const resendData = await resendRes.json();
+        if (!resendRes.ok) {
+          console.error("Resend API error:", resendData);
+        }
+      } catch (emailErr) {
+        console.error("Failed to send OTP email:", emailErr);
       }
-    } else {
-      // Dev mode: log OTP to console
-      console.log(`[DEV] OTP for ${normalizedEmail}: ${otpCode}`);
     }
+
+    // Always log OTP in dev for easy testing
+    console.log(`[OTP] ${normalizedEmail}: ${otpCode}`);
 
     return NextResponse.json({
       success: true,
       message: "OTP sent to your email",
-      // In dev mode, return OTP for testing
+      // In dev mode, return OTP in the response so it shows on screen
       ...(process.env.NODE_ENV === "development" ? { dev_otp: otpCode } : {}),
     });
   } catch (error) {

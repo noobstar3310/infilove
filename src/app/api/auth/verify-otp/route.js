@@ -17,37 +17,48 @@ export async function POST(request) {
     const normalizedEmail = email.toLowerCase().trim();
 
     // Find user
-    const { data: user } = await supabase
+    const { data: user, error: findError } = await supabase
       .from("users")
       .select("*")
       .eq("email", normalizedEmail)
       .single();
 
-    if (!user) {
+    if (findError || !user) {
+      console.error("Find user for verify error:", findError);
       return NextResponse.json(
-        { success: false, message: "User not found" },
+        { success: false, message: "User not found. Please request a new OTP." },
         { status: 404 }
       );
     }
 
+    console.log(`[VERIFY] email=${normalizedEmail}, input_otp=${otp_code}, stored_otp=${user.otp_code}, expires=${user.otp_expires_at}, attempts=${user.otp_attempts}`);
+
     // Check attempts
     if (user.otp_attempts >= 5) {
       return NextResponse.json(
-        { success: false, message: "Too many failed attempts. Please wait 5 minutes." },
+        { success: false, message: "Too many failed attempts. Please request a new code." },
         { status: 429 }
       );
     }
 
+    // Check OTP exists
+    if (!user.otp_code) {
+      return NextResponse.json(
+        { success: false, message: "No OTP found. Please request a new code." },
+        { status: 400 }
+      );
+    }
+
     // Check OTP expiry
-    if (!user.otp_code || !user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
+    if (!user.otp_expires_at || new Date(user.otp_expires_at) < new Date()) {
       return NextResponse.json(
         { success: false, message: "Code expired. Tap Resend to get a new code." },
         { status: 400 }
       );
     }
 
-    // Verify OTP
-    if (user.otp_code !== otp_code) {
+    // Verify OTP — compare as strings, trim whitespace
+    if (user.otp_code.trim() !== otp_code.trim()) {
       // Increment attempts
       await supabase
         .from("users")
@@ -56,22 +67,26 @@ export async function POST(request) {
 
       const remaining = 4 - (user.otp_attempts || 0);
       return NextResponse.json(
-        { success: false, message: `Invalid code. ${remaining} attempts remaining.` },
+        { success: false, message: `Invalid code. ${Math.max(0, remaining)} attempts remaining.` },
         { status: 400 }
       );
     }
 
     // OTP valid — clear it and verify user
-    await supabase
+    const { error: clearError } = await supabase
       .from("users")
       .update({ otp_code: null, otp_expires_at: null, otp_attempts: 0, is_verified: true })
       .eq("user_id", user.user_id);
+
+    if (clearError) {
+      console.error("Clear OTP error:", clearError);
+    }
 
     // Create session
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     const userAgent = request.headers.get("user-agent") || "";
 
-    const { data: session } = await supabase
+    const { data: session, error: sessionError } = await supabase
       .from("sessions")
       .insert({
         user_id: user.user_id,
@@ -80,6 +95,14 @@ export async function POST(request) {
       })
       .select("session_id")
       .single();
+
+    if (sessionError || !session) {
+      console.error("Create session error:", sessionError);
+      return NextResponse.json(
+        { success: false, message: "Login failed. Please try again." },
+        { status: 500 }
+      );
+    }
 
     // Get wallet balance
     const { data: wallet } = await supabase
@@ -94,7 +117,7 @@ export async function POST(request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 30 * 60, // 30 minutes
+      maxAge: 30 * 60,
       path: "/",
     });
 
